@@ -1,0 +1,361 @@
+---
+title: "MA304"
+output: html_document
+date: "2024-04-24"
+---
+
+```{r setup}
+library(plotrix)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(viridis)
+library(leaflet)
+library(corrplot)
+```
+
+## R Markdown
+
+
+
+```{r data}
+df_crime <- read.csv("crime23.csv")
+summary(df_crime)
+```
+
+## Including data
+
+You can also embed plots, for example:
+
+```{r data1}
+null_check <- any(is.na(df_crime))
+null_count <- colSums(is.na(df_crime))
+print(null_count)
+```
+
+```{r data2}
+df_crime[is.na(df_crime)]<-0
+null_count1 <- colSums(is.na(df_crime))
+print(null_count1)
+```
+
+
+
+```{r data3}
+df_crime$`category` <- as.factor(df_crime$`category`)
+df_crime$location_type <- as.factor(df_crime$location_type)
+category_counts <- table(df_crime$`category`)
+location_counts <- table(df_crime$location_type)
+location_counts_vector <- as.numeric(location_counts)
+category_counts_vector <- as.numeric(category_counts)
+```
+
+
+
+```{r data4}
+barplot(category_counts, 
+        main = "Frequency of Crime Categories", 
+        xlab = "Category", 
+        ylab = "Frequency",
+        col = "skyblue")
+```
+
+```{r data5}
+pie(category_counts, 
+    main = "Distribution of Crime Categories", 
+    col = rainbow(length(category_counts)),
+    labels = names(category_counts))
+```
+
+```{r data6}
+pie3D(category_counts, 
+      main = "Distribution of Crime Categories", 
+      col = rainbow(length(category_counts)), 
+      explode = 0.1)
+```
+
+```{r data7}
+dotchart(category_counts_vector, 
+         main = "Frequency of Category Types", 
+         xlab = "Frequency", 
+         cex = 0.7,
+         pch = 19,
+         color = "blue")
+```
+
+```{r data8}
+location_category_counts <- df_crime %>%
+  group_by(location_type, category) %>%
+  summarise(count = n())
+```
+
+```{r data9}
+ggplot(location_category_counts, aes(x = location_type, y = count, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Crimes by Location Type and Category", x = "Location Type", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right") +
+  scale_fill_brewer(palette = "Set3")
+```
+
+```{r data10}
+outcome_category_counts <- df_crime %>%
+  group_by(outcome_status, category) %>%
+  summarise(count = n())
+custom_palette <- viridis_pal()(n = length(unique(outcome_category_counts$category)))
+```
+
+```{r data11}
+ggplot(outcome_category_counts, aes(x = outcome_status, y = count, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Crimes by Outcome Status and Category", x = "Outcome Status", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right") +
+  scale_fill_manual(values = custom_palette)
+```
+
+
+```{r data12}
+ggplot(df_crime, aes(y = outcome_status)) +
+  geom_boxplot(fill = "skyblue", color = "black") +
+  labs(title = "Box Plot of Outcome Status", y = "Outcome Status") +
+  theme_minimal()
+```
+
+```{r data13}
+ggplot(df_crime, aes(x = 1, y = outcome_status)) +
+  geom_jitter(fill = "skyblue", color = "black", width = 0.2) +
+  labs(title = "Strip Plot of Outcome Status", y = "Outcome Status") +
+  theme_minimal()
+```
+
+```{r data14}
+ggplot(df_crime, aes(x = lat, y = long)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Latitude vs Longitude") +
+  theme_minimal()
+```
+
+```{r data15}
+hist(df_crime$lat, 
+     breaks = 20,          
+     col = "skyblue",     
+     border = "black",    
+     xlab = "Latitude",  
+     ylab = "Frequency",  
+     main = "Distribution of Latitude" 
+)
+```
+
+
+```{r data16}
+correlation_matrix <- cor(df_crime[, c("lat", "long")])
+final_correlation <- melt(correlation_matrix)
+ggplot(data = final_correlation) +
+  geom_tile(aes(Var2, Var1, fill = value)) +
+  geom_text(aes(Var2, Var1, label = round(value, 2)), color = "black", size = 3) +
+  scale_fill_gradient2(low = "green", mid = "white", high = "orange", midpoint = 0,
+                       name = "Correlation",
+                       limits = c(-1, 1),
+                       breaks = seq(-1, 1, by = 0.2)) +
+  theme_minimal() +
+  labs(title = "Correlation Matrix of Latitude and Longitude",
+       x = "Variables",
+       y = "Variables") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r data17}
+df_data_crime <- df_crime %>%
+  group_by(date) %>%
+  summarise(crime_count = n())
+
+ggplot(data = df_data_crime, aes(x = date, y = crime_count)) +
+  geom_bar(stat = "identity", fill = "green") +
+  labs(title = "Crime Count Over Time",
+       x = "Date",
+       y = "Crime Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+
+
+```{r data19}
+map_plot <- leaflet(data = df_crime) %>%
+  addTiles() %>%  
+  addCircleMarkers(~long, ~lat,  
+                   color = "red",
+                   radius = 3,
+                   fillOpacity = 0.5,
+                   popup = ~paste("Crime category: ", category))  
+
+
+map_plot
+```
+
+
+```{r data20}
+df_temp <- read.csv("temp2023.csv")
+summary(df_temp)
+```
+
+
+```{r data21}
+null_check_temp <- any(is.na(df_temp))
+null_count_temp <- colSums(is.na(df_temp))
+print(null_count_temp)
+```
+
+```{r data22}
+df_temp[is.na(df_temp)]<-0
+null_count2 <- colSums(is.na(df_temp))
+print(null_count2)
+```
+```{r data23}
+df_temp_max <- df_temp %>%
+  group_by(WindkmhDir) %>%
+  summarise(MaxTemperature = mean(TemperatureCMax, na.rm = TRUE))
+
+ggplot(data = df_temp_max, aes(x = WindkmhDir, y = MaxTemperature)) +
+  geom_bar(stat = "identity", fill = "green") +
+  labs(title = "Maximum Temperature by Wind Direction",
+       x = "Wind Direction",
+       y = "Maximum Temperature (°C)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+```{r data24}
+df_wind_press <- df_temp %>%
+  group_by(WindkmhDir, PresslevHp) %>%
+  summarise(Count = n()) %>%
+  ungroup()
+
+ggplot(data = df_wind_press, aes(x = "", y = Count, fill = PresslevHp)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  facet_wrap(~WindkmhDir, ncol = 3) +
+  labs(title = "Pressure Level Distribution by Wind Direction",
+       fill = "Pressure Level",
+       x = NULL,
+       y = NULL) +
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r data25}
+ggplot(data = df_temp, aes(x = TemperatureCAvg)) +
+  geom_histogram(fill = "orange", color = "black", bins = 20) +
+  labs(title = "Distribution of Average Temperature",
+       x = "Average Temperature",
+       y = "Frequency") +
+  theme_minimal()
+```
+```{r data26}
+ggplot(data = df_temp, aes(x = "", y = PresslevHp)) +
+  geom_boxplot(fill = "gray", color = "black") +
+  labs(title = "Distribution of Pressure Levels",
+       y = "Pressure Level") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank()) 
+```
+
+```{r data27}
+ggplot(data = df_temp, aes(x = WindkmhInt, y = PresslevHp, color = TemperatureCAvg)) +
+  geom_point() +
+  scale_color_gradient(low = "green", high = "red") +
+  labs(title = "Scatter Plot of Wind Speed vs. Pressure Levels with Temperature Evaluation",
+       x = "Wind Speed (km/h)",
+       y = "Pressure Level",
+       color = "Average Temperature (°C)") +
+  theme_minimal()
+```
+
+```{r data28}
+correlation_matrix_temp <- cor(df_temp[, c("TemperatureCAvg", "TemperatureCMax", "TemperatureCMin", "TdAvgC", "HrAvg", "WindkmhInt", "PresslevHp", "TotClOct", "VisKm")])
+
+correlation_df_temp <- as.data.frame(as.table(correlation_matrix_temp))
+
+colnames(correlation_df_temp) <- c("Variable1", "Variable2", "Correlation")
+
+ggplot(data = correlation_df_temp, aes(x = Variable1, y = Variable2, fill = Correlation, label = round(Correlation, 2))) +
+  geom_tile() +
+  geom_text(color = "white") +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "Correlation Plot", x = NULL, y = NULL, fill = "Correlation") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+```{r data29}
+df_temp$Date_new <- as.Date(df_temp$Date)
+df_temp$Month <- format(df_temp$Date_new, "%Y-%m")
+
+df_temp_monthly_temp <- df_temp %>%
+  group_by(Month) %>%
+  summarise(AvgMaxTemperature = mean(TemperatureCMax))
+
+ggplot(data = df_temp_monthly_temp, aes(x = Month, y = AvgMaxTemperature)) +
+  geom_bar(stat = "identity", fill = "red") +
+  labs(title = "Average Maximum Temperature by Month",
+       x = "Month",
+       y = "Average Maximum Temperature Level") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r data30}
+ggplot(data = df_temp_monthly_temp, aes(x = Month, y = AvgMaxTemperature)) +
+  geom_bar(stat = "identity", fill = "green") +
+  geom_smooth(method = "loess", se = FALSE, color = "red", linetype = "dashed") + 
+  labs(title = "Average Maximum Temperature by Month",
+       x = "Month",
+       y = "Average Maximum Temperature Level") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r data31}
+leaflet(data = df_temp) %>%
+  addTiles() %>%
+  addMarkers(lng = ~station_ID, lat = ~TemperatureCAvg, popup = ~paste("Date: ", Date, "<br>",
+                                                                   "Avg. Temperature: ", TemperatureCAvg, "°C")) %>%
+  setView(lng = mean(df_temp$station_ID), lat = mean(df_temp$TemperatureCAvg), zoom = 5)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
